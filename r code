@@ -1,0 +1,66 @@
+library(ROAuth)
+library(RCurl)
+library(twitteR)
+library(wordcloud)
+library(tm)
+library(purrr)
+library(plyr)
+library(dplyr)
+require('RCurl')
+require('ROAuth')
+library(stringr)
+library("openssl")
+library("httpuv")
+##SENTIMENT FUNCTION
+##NEW
+score.sentiment <- function(sentences, pos.words, neg.words, .progress='none')
+{
+  require(plyr)
+  require(stringr)
+  scores <- laply(sentences, function(sentence, pos.words, neg.words){
+    sentence <- gsub('[[:punct:]]', "", sentence)
+    sentence <- gsub('[[:cntrl:]]', "", sentence)
+    sentence <- gsub('\\d+', "", sentence)
+    sentence <- tolower(sentence)
+    word.list <- str_split(sentence, '\\s+')
+    words <- unlist(word.list)
+    pos.matches <- match(words, pos.words)
+    neg.matches <- match(words, neg.words)
+    pos.matches <- !is.na(pos.matches)
+    neg.matches <- !is.na(neg.matches)
+    pp=sum(pos.matches)
+    score <- sum(pos.matches) - sum(neg.matches)
+    return(score)
+  }, pos.words, neg.words, .progress=.progress)
+  scores.df <- data.frame(score=scores, text=sentences)
+  return(scores.df)
+}
+##NEW
+pos.words = scan('C:\Users\mitar\Desktop\positive-words',comment.char=';')
+neg.words = scan('C:\Users\mitar\Desktop\negative-words',what='character',comment.char=';')
+bscore <- score.sentiment(tweet_df$text,pos.words,neg.words,.progress='text')
+rscore <- score.sentiment(tweet2_df$text,pos.words,neg.words,.progress='text')
+hist(rscore$score)
+hist(bscore$score)
+consumer_key <-  "GXaNpKtdb6ZBYbxpBfHiMOSBc"
+consumer_secret <- "DdRo7xWQmDWRwIC6k2gXTzyTsTrf4IRF9WL68ar9myAmrtr9B0"
+access_token <- "1097115729734754304-EauM6ywg9glrIC9paTyGW1IjTh81Zb"
+access_secret <- "liQRf4GqgJg4lvc1il9gAeXCq14UUBUohYDAPyRzlHVLb "
+
+download.file(url="http://curl.haxx.se/ca/cacert.pem", destfile="cacert.pem") #downloads the certificate
+cred <- OAuthFactory$new(consumerKey=consumer_key, 
+                         consumerSecret=consumer_secret,
+                         requestURL='https://api.twitter.com/oauth/request_token',
+                         accessURL='https://api.twitter.com/oauth/access_token',
+                         authURL='https://api.twitter.com/oauth/authorize')
+
+cred$handshake(cainfo="cacert.pem")
+setup_twitter_oauth(consumer_key,consumer_secret,access_token,access_secret)
+tweet1 <- userTimeline("@barcalona",n=100)
+tweet2 <- userTimeline("@realmadriden",n=100)
+tweet_df <- tbl_df(map_df(tweet1,as.data.frame))
+tweet2_df <- tbl_df(map_df(tweet2,as.data.frame))
+
+#tweet3 <- userTimeline("@flipkartsupport",n=100)
+#tweet3_df <- tbl_df(map_df(tweet3,as.data.frame))
+#fscore <- score.sentiment(tweet3_df$text,pos.words,neg.words,.progress='text')
